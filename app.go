@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/gorilla/mux"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"net/http"
 )
 
@@ -34,4 +35,5 @@ func (a *App) setRouters() {
 			return
 		}
 	}).Methods(http.MethodGet)
+	a.Router.Path("/metrics").Handler(promhttp.Handler()).Methods(http.MethodGet)
 }
