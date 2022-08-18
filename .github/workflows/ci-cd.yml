@@ -1,0 +1,93 @@
+name: Backend Golang CI/CD
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**.md'
+  pull_request:
+      branches:
+        - main
+      paths-ignore:
+        - '**.md'
+
+jobs:
+  build-tests:
+    name: Build, Test
+    strategy:
+      matrix:
+        go-version: [ 1.18 ]
+        platform: [ ubuntu-latest ]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v3
+        with:
+          go-version: ${{ matrix.go-version }}
+          cache: true
+      - name: Check Version Go
+        run: go version
+      - name: Verify dependencies
+        run: go mod verify
+      - name: Run testing and generate coverage report
+        run: go test -v ./... -coverprofile=coverage.out -covermode=atomic
+      - name: Upload an coverage
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-artifact
+          path: coverage.out
+          retention-days: 1
+  quality:
+    name: Code Quality and Code Security
+    needs:
+      -   build-tests
+    strategy:
+      matrix:
+        platform: [ ubuntu-latest ]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Check out source code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Download code coverage results
+        uses: actions/download-artifact@v3
+        with:
+          name: coverage-artifact
+          path: ./
+      - name: Analyze with SonarCloud
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#      - name: Upload coverage report
+#        uses: codecov/codecov-action@v1.0.2
+#        with:
+#          token: ${{ secrets.CODECOV_TOKEN }}
+#          files: ./coverage.out
+#          flags: unittests
+#          name: codecov-umbrella
+  deploy:
+    if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    name: Deploy
+    needs:
+      -   quality
+    strategy:
+      matrix:
+        go-version: [ 1.18 ]
+        platform: [ ubuntu-latest ]
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+      - name: Deploy to Heroku
+        uses: akhileshns/heroku-deploy@v3.12.12
+        with:
+          heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+          heroku_app_name: ${{ secrets.HEROKU_APP_NAME }}
+          heroku_email: ${{ secrets.HEROKU_EMAIL }}
