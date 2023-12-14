@@ -37,7 +37,7 @@ jobs:
       - name: Run testing and generate coverage report
         run: go test -v ./... -coverprofile=coverage.out -covermode=atomic
       - name: Upload an coverage
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-artifact
           path: coverage.out
